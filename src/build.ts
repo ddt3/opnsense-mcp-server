@@ -21,6 +21,7 @@ import {
 import { OPNsenseClient } from '@richard-stovall/opnsense-typescript-client';
 import { buildCallArgs } from './lib/call-args.js';
 import { SEARCH_METHOD, addSearchMethod, buildSearchRequest } from './lib/search.js';
+import { patchHttpClient } from './lib/url-fixes.js';
 import { VERSION } from './lib/version.js';
 
 // Embedded modular tool definitions
@@ -56,6 +57,8 @@ class OPNsenseMCPServer {
         apiSecret: this.config.apiSecret,
         verifySsl: this.config.verifySsl ?? true,
       });
+      // Fix wrong endpoint URLs in the client (e.g. firmware)
+      patchHttpClient(this.client.http);
     }
     return this.client;
   }
