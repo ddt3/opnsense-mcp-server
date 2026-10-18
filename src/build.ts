@@ -19,6 +19,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { OPNsenseClient } from '@richard-stovall/opnsense-typescript-client';
+import { buildCallArgs } from './lib/call-args.js';
 
 // Embedded modular tool definitions
 const TOOLS = ${JSON.stringify(toolsData.tools, null, 2)};
@@ -162,12 +163,8 @@ class OPNsenseMCPServer {
     const { method: _, params = {}, ...otherArgs } = args;
     const callParams = { ...params, ...otherArgs };
     
-    // Only pass parameters if there are any
-    if (Object.keys(callParams).length > 0) {
-      return await method.call(moduleObj, callParams);
-    } else {
-      return await method.call(moduleObj);
-    }
+    // Map params onto the method's positional args (path args, then body)
+    return await method.apply(moduleObj, buildCallArgs(method, callParams));
   }
 
   async start() {
