@@ -9,6 +9,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { OPNsenseClient } from '@richard-stovall/opnsense-typescript-client';
 import { buildCallArgs } from './lib/call-args.js';
+import { SEARCH_METHOD, addSearchMethod, buildSearchRequest } from './lib/search.js';
+import { VERSION } from './lib/version.js';
 
 // Embedded modular tool definitions
 const TOOLS = [
@@ -8786,7 +8788,7 @@ const TOOLS = [
       ]
     }
   }
-];
+].map(addSearchMethod);
 
 // Method documentation for help
 const METHOD_DOCS = {
@@ -11262,7 +11264,7 @@ class OPNsenseMCPServer {
     this.server = new Server(
       {
         name: 'opnsense-mcp-server',
-        version: '0.6.0',
+        version: VERSION,
       },
       {
         capabilities: {
@@ -11365,6 +11367,14 @@ class OPNsenseMCPServer {
     if (!tool.methods.includes(args.method)) {
       throw new Error(`Invalid method '${args.method}'. Available methods: ${tool.methods.join(', ')}`);
     }
+
+    // Generic grid search, not backed by a client method
+    if (args.method === SEARCH_METHOD) {
+      const { method: _, params = {}, ...otherArgs } = args;
+      const { url, body } = buildSearchRequest({ ...params, ...otherArgs });
+      console.error(`Calling search ${url}`);
+      return await client.http.post(url, body);
+    }
     
     // Get the module
     let moduleObj;
@@ -11398,7 +11408,7 @@ class OPNsenseMCPServer {
   async start() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('OPNsense MCP server v0.6.0 (modular) started');
+    console.error(`OPNsense MCP server v${VERSION} (modular) started`);
     console.error(`Core tools: 24 modules`);
     console.error(`Plugin tools: 64 modules (${this.config.includePlugins ? 'enabled' : 'disabled'})`);
     console.error(`Total available: ${this.config.includePlugins ? '88' : '24'} modules`);
@@ -11449,7 +11459,7 @@ function parseArgs() {
 
 function showHelp() {
   console.log(`
-OPNsense MCP Server v0.6.0 (Modular Edition)
+OPNsense MCP Server v${VERSION} (Modular Edition)
 
 Usage: opnsense-mcp-server --url <url> --api-key <key> --api-secret <secret> [options]
 
