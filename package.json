@@ -24,7 +24,8 @@
     "generate-tools": "tsx src/generate-tools.ts",
     "build:all": "yarn generate-tools && yarn build",
     "validate": "node index.js --help > /dev/null 2>&1; echo 'Validation passed'",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "keywords": [
     "opnsense",
@@ -49,6 +50,7 @@
   },
   "files": [
     "index.js",
+    "lib/",
     "tools-generated.json",
     "README.md",
     "LICENSE"
