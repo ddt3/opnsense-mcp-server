@@ -124,7 +124,7 @@ node /path/to/opnsense-mcp-server/index.js \
 This should output:
 
 ```
-OPNsense MCP server v0.6.0 (modular) started
+OPNsense MCP server v<version from package.json> (modular) started
 Core tools: 24 modules
 Plugin tools: 64 modules (disabled)
 Total available: 24 modules
@@ -171,13 +171,21 @@ The modular MCP server provides your AI assistant with 88 module-based tools. Ea
 {
   "tool": "firewall_manage",
   "arguments": {
-    "method": "aliasSearchItem",
+    "method": "search",
     "params": {
+      "path": "firewall/alias/search_item",
       "searchPhrase": "web"
     }
   }
 }
 ```
+
+**Passing params:**
+
+- Path arguments of a method are taken from `params` by name, e.g. `aliasDelItem` takes `{"uuid": "..."}` and `backupBackups` takes `{"host": "this"}`. A missing path argument is an error (toggle methods need an explicit `enabled`, `"0"` or `"1"`).
+- All other keys form the request body, e.g. `aliasAddItem` takes `{"alias": {"name": "...", "type": "host", "content": "..."}}`. A lone `data` or `item` key is unwrapped.
+
+**Searching grids:** the underlying client has no `search_item`/`search_rule` methods, so every tool has a generic `search` method. Pass `path` below `/api` (`<module>/<controller>/search...`, e.g. `firewall/filter/search_rule`, `dnsmasq/settings/search_host`) plus optional `searchPhrase`, `rowCount` (`-1` = all) and `current`. Other paths are rejected.
 
 **Example prompts:**
 
@@ -198,7 +206,7 @@ Each tool provides access to all methods within that module:
 | Tool Name            | Description              | Example Methods                                         |
 | -------------------- | ------------------------ | ------------------------------------------------------- |
 | `core_manage`        | Core system functions    | `backupBackups`, `systemReboot`, `firmwareInfo`         |
-| `firewall_manage`    | Firewall rules & aliases | `aliasSearchItem`, `filterAddRule`, `natSearchRule`     |
+| `firewall_manage`    | Firewall rules & aliases | `search`, `aliasAddItem`, `filterAddRule`               |
 | `interfaces_manage`  | Network interfaces       | `getInterfaces`, `vlanAddItem`, `setInterface`          |
 | `diagnostics_manage` | System diagnostics       | `interfaceGetArp`, `systemActivityGetActivity`          |
 | `auth_manage`        | Authentication           | `userSearchUser`, `groupSearchGroup`                    |
