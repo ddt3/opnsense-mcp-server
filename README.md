@@ -160,6 +160,7 @@ The server accepts configuration through environment variables:
 - `OPNSENSE_API_SECRET` - API secret for authentication (required)
 - `INCLUDE_PLUGINS` - Set to "true" to enable 64 plugin module tools (optional)
 - `OPNSENSE_VERIFY_SSL` - Set to "false" to disable SSL verification (development only)
+- `OPNSENSE_HTTP_VERSION` - `2` (default for https URLs) or `1` to force HTTP/1.1. HTTP/2 avoids "Parse Error: Expected LF after chunk data" on large responses, which OPNsense sends with broken chunked framing over HTTP/1.1
 
 ## How It Works
 

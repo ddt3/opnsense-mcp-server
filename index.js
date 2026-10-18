@@ -11,6 +11,7 @@ import { OPNsenseClient } from '@richard-stovall/opnsense-typescript-client';
 import { buildCallArgs } from './lib/call-args.js';
 import { SEARCH_METHOD, addSearchMethod, buildSearchRequest } from './lib/search.js';
 import { patchHttpClient } from './lib/url-fixes.js';
+import { enableHttp2, resolveHttpVersion } from './lib/http2.js';
 import { VERSION } from './lib/version.js';
 
 // Embedded modular tool definitions
@@ -11287,6 +11288,9 @@ class OPNsenseMCPServer {
       });
       // Fix wrong endpoint URLs in the client (e.g. firmware)
       patchHttpClient(this.client.http);
+      if (this.config.httpVersion === 2) {
+        enableHttp2(this.client.http, { verifySsl: this.config.verifySsl });
+      }
     }
     return this.client;
   }
@@ -11411,6 +11415,7 @@ class OPNsenseMCPServer {
   async start() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
+    console.error('HTTP version: ' + (this.config.httpVersion === 2 ? 'HTTP/2' : 'HTTP/1.1'));
     console.error(`OPNsense MCP server v${VERSION} (modular) started`);
     console.error(`Core tools: 24 modules`);
     console.error(`Plugin tools: 64 modules (${this.config.includePlugins ? 'enabled' : 'disabled'})`);
@@ -11482,6 +11487,7 @@ Environment Variables:
   OPNSENSE_API_SECRET       API Secret
   OPNSENSE_VERIFY_SSL       Set to 'false' to disable SSL verification
   INCLUDE_PLUGINS           Set to 'true' to include plugin tools
+  OPNSENSE_HTTP_VERSION     '2' (default for https) or '1' to force HTTP/1.1
 
 Examples:
   # Basic usage (24 core modules)
@@ -11526,6 +11532,7 @@ async function main() {
   if (config.includePlugins || process.env.INCLUDE_PLUGINS === 'true') {
     config.includePlugins = true;
   }
+  config.httpVersion = resolveHttpVersion(config.url, process.env.OPNSENSE_HTTP_VERSION);
 
   // Validate required arguments
   if (!config.url || !config.apiKey || !config.apiSecret) {
