@@ -31,6 +31,7 @@ import {
   sendApiRequest,
   listEndpoints,
 } from './lib/api-call.js';
+import { staleMethodError } from './lib/stale-methods.js';
 import { patchHttpClient } from './lib/url-fixes.js';
 import { enableHttp2, resolveHttpVersion } from './lib/http2.js';
 import { VERSION } from './lib/version.js';
@@ -212,8 +213,15 @@ class OPNsenseMCPServer {
     
     // Extract params, excluding the method field
     const { method: _, params = {}, ...otherArgs } = args;
-    const callParams = { ...params, ...otherArgs };
-    
+    const { unchecked, ...callParams } = { ...params, ...otherArgs };
+
+    // Client methods for endpoints OPNsense removed fail with a pointer
+    // to the current ones instead of a bare 404
+    const stale = unchecked ? null : staleMethodError(API_CATALOG, method);
+    if (stale) {
+      throw new Error(stale);
+    }
+
     // Map params onto the method's positional args (path args, then body)
     return await method.apply(moduleObj, buildCallArgs(method, callParams));
   }

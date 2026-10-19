@@ -15,6 +15,12 @@ const RST = `
 
 .. csv-table:: Resources (AliasUtilController.php)  -- extends : ApiControllerBase
     "\`\`GET\`\`","firewall","alias_util","list","$alias"
+
+.. csv-table:: Abstract [non-callable] (FilterBaseController.php)
+    "\`\`POST\`\`","firewall","filter_base","apply",""
+
+.. csv-table:: Service (ServiceController.php)
+    "\`\`GET\`\`","firewall","service","status",""
 `;
 
 test('parseParams reads required, optional and quoted defaults', () => {
@@ -27,15 +33,17 @@ test('parseParams reads required, optional and quoted defaults', () => {
   ]);
 });
 
-test('parseRst extracts endpoint rows with methods, params and source controller', () => {
+test('parseRst extracts endpoint rows and skips abstract base controllers', () => {
   const entries = parseRst(RST, 'core');
   assert.deepEqual(entries.map(e => e.path), [
     'firewall/alias/add_item', 'firewall/alias/search_item', 'firewall/alias/toggle_item', 'firewall/alias_util/list',
+    'firewall/service/status',
   ]);
   assert.deepEqual(entries[1].methods, ['GET', 'POST']);
   assert.equal(entries[2].params[1].name, 'enabled');
   assert.equal(entries[2].source, 'AliasController.php');
   assert.equal(entries[3].source, 'AliasUtilController.php');
+  assert.equal(entries[4].source, 'ServiceController.php');
   assert.ok(entries.every(e => e.kind === 'core'));
 });
 
@@ -51,7 +59,7 @@ test('ApiCatalog finds, lists and suggests endpoints', () => {
   assert.equal(catalog.list({ module: 'firewall', controller: 'aliasUtil' }).length, 1);
   assert.equal(catalog.list({ filter: 'search' }).length, 1);
   assert.equal(catalog.suggest('firewall/alias/toggle')[0], 'firewall/alias/toggle_item');
-  assert.deepEqual(catalog.modules(), [{ name: 'firewall', kind: 'core', count: 4 }]);
+  assert.deepEqual(catalog.modules(), [{ name: 'firewall', kind: 'core', count: 5 }]);
 });
 
 test('the shipped catalog covers core and plugin modules', () => {
@@ -60,5 +68,12 @@ test('the shipped catalog covers core and plugin modules', () => {
   for (const path of ['firewall/filter/search_rule', 'radvd/settings/search_entry', 'core/firmware/status', 'haproxy/settings/search_servers']) {
     assert.ok(catalog.find(path), `${path} missing from catalog`);
   }
+  // Inherited actions only found in the sources
+  for (const path of ['firewall/filter/apply', 'firewall/d_nat/get', 'kea/leases4/search', 'quagga/bgp/set']) {
+    assert.ok(catalog.find(path)?.fromSource, `${path} should come from the sources`);
+  }
+  // Abstract base controllers cannot be routed
+  assert.equal(catalog.find('firewall/filter_base/apply'), null);
+  assert.equal(catalog.find('kea/leases/search'), null);
   assert.equal(catalog.byPath.size, catalog.entries.length, 'normalized paths must be unique');
 });
