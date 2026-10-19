@@ -293,7 +293,7 @@ Required:
 
 Options:
   --no-verify-ssl           Disable SSL certificate verification
-  --plugins                 Include plugin tools (adds ${toolsData.pluginTools} plugin modules)
+  --plugins                 Include plugin tools (adds \${PLUGIN_TOOL_COUNT} plugin modules)
   -h, --help                Show this help message
 
 Environment Variables:
@@ -305,10 +305,10 @@ Environment Variables:
   OPNSENSE_HTTP_VERSION     '2' (default for https) or '1' to force HTTP/1.1
 
 Examples:
-  # Basic usage (${toolsData.coreTools} core modules)
+  # Basic usage (\${CORE_TOOL_COUNT} core modules)
   opnsense-mcp-server --url https://192.168.1.1 --api-key mykey --api-secret mysecret
 
-  # With plugins enabled (${toolsData.totalTools} total modules)
+  # With plugins enabled (\${TOOLS.length} total modules)
   opnsense-mcp-server --url https://192.168.1.1 --api-key mykey --api-secret mysecret --plugins
 
 Tool Usage:

@@ -1,13 +1,13 @@
 # OPNsense MCP Server
 
-A modular Model Context Protocol (MCP) server that provides **88 module-based tools** giving access to over 2000 OPNsense firewall management methods through a type-safe TypeScript interface.
+A modular Model Context Protocol (MCP) server that provides **98 module-based tools** giving access to over 2500 OPNsense API endpoints: the methods of a type-safe TypeScript client, plus every other documented endpoint through a generic `call` method.
 
 ## Features
 
-- **Modular Architecture** - 88 logical tools (one per module) instead of 2000+ individual tools
-- **Complete API Coverage** - Access to 752 core methods and 1271 plugin methods
+- **Modular Architecture** - 98 logical tools (one per module) instead of 2500+ individual tools
+- **Complete API Coverage** - 752 core and 1271 plugin client methods, plus a catalog of all 2526 OPNsense API endpoints (core, plugins, Business Edition) reachable via `call`
 - **Type-Safe** - Full TypeScript support with [@richard-stovall/opnsense-typescript-client](https://www.npmjs.com/package/@richard-stovall/opnsense-typescript-client) v0.5.3
-- **Plugin Support** - Optional support for 64 plugin modules
+- **Plugin Support** - Optional support for 70 plugin modules
 - **Smart Organization** - Related operations grouped by module for easier discovery
 
 The MCP server acts as a bridge between AI assistants (like Claude Desktop) and your OPNsense firewall, providing secure API access through a modular tool interface.
@@ -87,7 +87,7 @@ Add the following to your Claude Desktop configuration file:
 ```
 
 **Enable Plugin Tools:**
-To include all 64 plugin module tools, add `"--plugins"` to the args or set `"INCLUDE_PLUGINS": "true"` in env.
+To include all 70 plugin module tools, add `"--plugins"` to the args or set `"INCLUDE_PLUGINS": "true"` in env.
 
 #### Testing the Setup
 
@@ -158,13 +158,13 @@ The server accepts configuration through environment variables:
 - `OPNSENSE_URL` - OPNsense host URL (required)
 - `OPNSENSE_API_KEY` - API key for authentication (required)
 - `OPNSENSE_API_SECRET` - API secret for authentication (required)
-- `INCLUDE_PLUGINS` - Set to "true" to enable 64 plugin module tools (optional)
+- `INCLUDE_PLUGINS` - Set to "true" to enable 70 plugin module tools (optional)
 - `OPNSENSE_VERIFY_SSL` - Set to "false" to disable SSL verification (development only)
 - `OPNSENSE_HTTP_VERSION` - `2` (default for https URLs) or `1` to force HTTP/1.1. HTTP/2 avoids "Parse Error: Expected LF after chunk data" on large responses, which OPNsense sends with broken chunked framing over HTTP/1.1
 
 ## How It Works
 
-The modular MCP server provides your AI assistant with 88 module-based tools. Each tool represents an OPNsense module and accepts a `method` parameter to specify the operation.
+The modular MCP server provides your AI assistant with 98 module-based tools. Each tool represents an OPNsense module and accepts a `method` parameter to specify the operation.
 
 **Tool Usage Pattern:**
 
@@ -188,6 +188,23 @@ The modular MCP server provides your AI assistant with 88 module-based tools. Ea
 
 **Searching grids:** the underlying client has no `search_item`/`search_rule` methods, so every tool has a generic `search` method. Pass `path` below `/api` (`<module>/<controller>/search...`, e.g. `firewall/filter/search_rule`, `dnsmasq/settings/search_host`) plus optional `searchPhrase`, `rowCount` (`-1` = all) and `current`. Other paths are rejected.
 
+**Any endpoint: `call` and `endpoints`.** The client lacks ~500 endpoints (whole modules such as Router Advertisements, and many `search_*`, service and NAT actions). Every tool therefore also has:
+
+- `endpoints` - lists the API endpoints of the tool's module with their HTTP methods and path args. Params: `filter` (substring, e.g. `search`), `controller`, `module` (`*` lists all modules).
+- `call` - calls any endpoint from the catalog. `path` is `<module>/<controller>/<command>`; the endpoint's path args are taken from `params` by name (in catalog order, trailing optional ones may be left out) and the remaining keys form the body, unwrapped like above. With a body the request is a POST, without one a GET; POST-only endpoints are always POSTed, `httpMethod` overrides. Unknown paths fail with suggestions unless `unchecked: true` is set.
+
+```json
+{ "method": "call", "params": { "path": "firewall/alias/toggle_item", "uuid": "...", "enabled": 1 } }
+{ "method": "call", "params": { "path": "radvd/settings/search_entry" } }
+{ "method": "endpoints", "params": { "filter": "rule" } }
+```
+
+Modules the client does not know at all get a tool with only these generic methods: `radvd_manage`, `hostdiscovery_manage`, `ntpd_manage`, `opncentral_manage` (Business Edition) and, with plugins enabled, `plugin_beats_manage`, `plugin_cloudflared_manage`, `plugin_ndpproxy_manage`, `plugin_netbird_manage`, `plugin_netflector_manage` and `plugin_qfeeds_manage`.
+
+**Removed endpoints:** client methods whose endpoint is no longer in OPNsense (e.g. `filterBaseSavepoint`; firewall rollback was removed, `filterBaseApply` now applies directly) fail with the closest current endpoints instead of a bare 404. Pass `unchecked: true` to call them anyway.
+
+**The API catalog** (`lib/api-catalog.json`) is built from the [official API reference](https://docs.opnsense.org/development/api.html), which OPNsense generates from its sources, plus the actions controllers inherit from custom base classes, which that reference misses (read from the opnsense/core and opnsense/plugins sources). It tracks the development branch, so a few endpoints may be newer than the OPNsense version you run. Refresh it after a release with `npm run update-api-catalog` (clones the three repos shallowly, or pass `--docs DIR --core DIR --plugins DIR`).
+
 **Example prompts:**
 
 - "Use core_manage to check system status"
@@ -200,7 +217,7 @@ The modular approach makes it easy to discover related functionality - all firew
 
 ## Available Module Tools
 
-### Core Modules (24 tools)
+### Core Modules (28 tools)
 
 Each tool provides access to all methods within that module:
 
@@ -218,7 +235,7 @@ Each tool provides access to all methods within that module:
 | `unbound_manage`     | DNS resolver             | `hostOverrideSearchItem`, `serviceReconfigure`          |
 | `dhcpv4_manage`      | DHCP server              | `searchLease`, `addReservation`                         |
 
-### Plugin Modules (64 tools when enabled)
+### Plugin Modules (70 tools when enabled)
 
 Popular plugin modules:
 
@@ -255,6 +272,7 @@ yarn start
 
 ```bash
 yarn generate-tools  # Generate tool definitions
+yarn update-api-catalog  # Refresh lib/api-catalog.json from OPNsense docs and sources
 yarn build          # Build the server
 yarn build:all      # Generate tools and build
 yarn dev            # Run with hot reload
