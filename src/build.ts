@@ -21,12 +21,33 @@ import {
 import { OPNsenseClient } from '@richard-stovall/opnsense-typescript-client';
 import { buildCallArgs } from './lib/call-args.js';
 import { SEARCH_METHOD, addSearchMethod, buildSearchRequest } from './lib/search.js';
+import { ApiCatalog } from './lib/api-catalog.js';
+import {
+  CALL_METHOD,
+  ENDPOINTS_METHOD,
+  addCatalogMethods,
+  catalogTools,
+  buildApiRequest,
+  sendApiRequest,
+  listEndpoints,
+} from './lib/api-call.js';
 import { patchHttpClient } from './lib/url-fixes.js';
 import { enableHttp2, resolveHttpVersion } from './lib/http2.js';
 import { VERSION } from './lib/version.js';
 
-// Embedded modular tool definitions
-const TOOLS = ${JSON.stringify(toolsData.tools, null, 2)}.map(addSearchMethod);
+// Every documented OPNsense API endpoint (lib/api-catalog.json)
+const API_CATALOG = ApiCatalog.load();
+
+// Embedded modular tool definitions from the typescript client
+const CLIENT_TOOLS = ${JSON.stringify(toolsData.tools, null, 2)};
+
+// Client tools plus tools for catalog modules the client lacks; all of them
+// get the generic search, call and endpoints methods
+const TOOLS = [...CLIENT_TOOLS, ...catalogTools(API_CATALOG, CLIENT_TOOLS)]
+  .map(addSearchMethod)
+  .map(addCatalogMethods);
+const CORE_TOOL_COUNT = TOOLS.filter(t => t.module !== 'plugins').length;
+const PLUGIN_TOOL_COUNT = TOOLS.length - CORE_TOOL_COUNT;
 
 // Method documentation for help
 const METHOD_DOCS = ${JSON.stringify(toolsData.methodDocs, null, 2)};
@@ -154,7 +175,20 @@ class OPNsenseMCPServer {
       console.error(\`Calling search \${url}\`);
       return await client.http.post(url, body);
     }
-    
+
+    // Generic access to any endpoint in the API catalog
+    if (args.method === CALL_METHOD) {
+      const { method: _, params = {}, ...otherArgs } = args;
+      const request = buildApiRequest(API_CATALOG, { ...params, ...otherArgs });
+      console.error(\`Calling \${request.method} \${request.url}\`);
+      return await sendApiRequest(client.http, request);
+    }
+
+    if (args.method === ENDPOINTS_METHOD) {
+      const { method: _, params = {}, ...otherArgs } = args;
+      return listEndpoints(API_CATALOG, tool, { ...params, ...otherArgs });
+    }
+
     // Get the module
     let moduleObj;
     if (tool.module === 'plugins' && tool.submodule) {
@@ -189,9 +223,10 @@ class OPNsenseMCPServer {
     await this.server.connect(transport);
     console.error('HTTP version: ' + (this.config.httpVersion === 2 ? 'HTTP/2' : 'HTTP/1.1'));
     console.error(\`OPNsense MCP server v\${VERSION} (modular) started\`);
-    console.error(\`Core tools: ${toolsData.coreTools} modules\`);
-    console.error(\`Plugin tools: ${toolsData.pluginTools} modules (\${this.config.includePlugins ? 'enabled' : 'disabled'})\`);
-    console.error(\`Total available: \${this.config.includePlugins ? '${toolsData.totalTools}' : '${toolsData.coreTools}'} modules\`);
+    console.error(\`Core tools: \${CORE_TOOL_COUNT} modules\`);
+    console.error(\`Plugin tools: \${PLUGIN_TOOL_COUNT} modules (\${this.config.includePlugins ? 'enabled' : 'disabled'})\`);
+    console.error(\`Total available: \${this.config.includePlugins ? TOOLS.length : CORE_TOOL_COUNT} modules\`);
+    console.error(\`API catalog: \${API_CATALOG.entries.length} endpoints\`);
   }
 }
 
@@ -285,6 +320,11 @@ Tool Usage:
       "rowCount": 20
     }
   }
+
+  Every tool also offers generic methods backed by the OPNsense API catalog:
+  - method: "endpoints" - List API endpoints of the module (params: filter, controller)
+  - method: "call"      - Call any endpoint, e.g.
+      { "method": "call", "params": { "path": "firewall/alias/toggle_item", "uuid": "...", "enabled": 1 } }
 
 Based on @richard-stovall/opnsense-typescript-client v0.5.3
 \`);
