@@ -22,6 +22,7 @@
     "help": "node index.js --help",
     "build": "tsx src/build.ts",
     "generate-tools": "tsx src/generate-tools.ts",
+    "update-api-catalog": "node scripts/update-api-catalog.js",
     "build:all": "yarn generate-tools && yarn build",
     "validate": "node index.js --help > /dev/null 2>&1; echo 'Validation passed'",
     "type-check": "tsc --noEmit",
