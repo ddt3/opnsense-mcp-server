@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fixUrl, patchHttpClient } from '../lib/url-fixes.js';
+import { fixUrl, patchHttpClient, removedEndpointReason } from '../lib/url-fixes.js';
 
 test('fixUrl maps the broken firmware prefix onto /api/core/firmware', () => {
   assert.equal(fixUrl('/api/firmware/firmware/status'), '/api/core/firmware/status');
@@ -50,4 +50,24 @@ test('patchHttpClient is idempotent', async () => {
   patchHttpClient(http);
   await http.post('/api/firmware/firmware/status');
   assert.deepEqual(urls, ['/api/core/firmware/status']);
+});
+
+test('fixUrl maps the abstract filter_base controller onto /api/firewall/filter', () => {
+  assert.equal(fixUrl('/api/firewall/filter_base/apply/'), '/api/firewall/filter/apply/');
+  assert.equal(fixUrl('/api/firewall/filter_base/get'), '/api/firewall/filter/get');
+  assert.equal(fixUrl('/api/firewall/filter_base/list_network_select_options'), '/api/firewall/filter/list_network_select_options');
+  assert.equal(fixUrl('/api/firewall/filter/search_rule'), '/api/firewall/filter/search_rule');
+});
+
+test('removed firewall rollback endpoints fail with an explanation instead of a 404', async () => {
+  const urls = [];
+  const http = { post: async (url) => urls.push(url) };
+  patchHttpClient(http);
+
+  for (const url of ['/api/firewall/filter_base/savepoint', '/api/firewall/filter_base/cancel_rollback/123', '/api/firewall/filter_base/revert/123']) {
+    await assert.rejects(http.post(url), /removed from OPNsense/);
+  }
+  assert.equal(removedEndpointReason('/api/firewall/filter/apply/'), null);
+  await http.post('/api/firewall/filter_base/apply/');
+  assert.deepEqual(urls, ['/api/firewall/filter/apply/']);
 });

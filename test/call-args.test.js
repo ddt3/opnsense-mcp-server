@@ -74,3 +74,12 @@ test('path args are URL-encoded', () => {
   assert.deepEqual(buildCallArgs(client.core.backupBackups, { host: '../x' }), ['..%2Fx']);
   assert.deepEqual(buildCallArgs(client.firewall.aliasToggleItem, { uuid: 'abc', enabled: 1 }), ['abc', '1', undefined]);
 });
+
+test('filterBaseApply works without the rollback revision OPNsense no longer takes', () => {
+  assert.deepEqual(buildCallArgs(client.firewall.filterBaseApply, {}), ['', undefined]);
+  assert.deepEqual(buildCallArgs(client.firewall.filterBaseApply, { rollbackRevision: '17' }), ['17', undefined]);
+});
+
+test('other path args stay required', () => {
+  assert.throws(() => buildCallArgs(client.firewall.aliasDelItem, {}), /Missing required parameter 'uuid'/);
+});
